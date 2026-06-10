@@ -8,6 +8,11 @@
 #     -H 'content-type: application/json' -d '{"sql":"SELECT 1"}'
 name: PerSQL setup-db
 description: Keyless persistent database for this repo's GitHub Actions (via OIDC).
+author: PerSQL
+
+branding:
+  icon: database
+  color: gray-dark
 
 inputs:
   api-url:
