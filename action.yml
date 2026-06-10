@@ -1,0 +1,57 @@
+# PerSQL: connect this workflow to a persistent, repo-scoped database --
+# keyless, via GitHub OIDC. No secret to store. The job must declare
+# `permissions: id-token: write`. The repo must have the PerSQL GitHub
+# App installed (that's the repo -> namespace binding).
+#
+# Outputs `token` + `url` for later steps:
+#   curl -X POST "$URL/query" -H "Authorization: Bearer $TOKEN" \
+#     -H 'content-type: application/json' -d '{"sql":"SELECT 1"}'
+name: PerSQL setup-db
+description: Keyless persistent database for this repo's GitHub Actions (via OIDC).
+
+inputs:
+  api-url:
+    description: PerSQL API base URL.
+    required: false
+    default: https://api.persql.com
+
+outputs:
+  token:
+    description: Short-lived PerSQL token, scoped to this repo's Actions database.
+    value: ${{ steps.connect.outputs.token }}
+  url:
+    description: Base /v1 URL for the database (POST {url}/query).
+    value: ${{ steps.connect.outputs.url }}
+  database:
+    description: The provisioned database slug.
+    value: ${{ steps.connect.outputs.database }}
+  namespace:
+    description: The PerSQL namespace slug.
+    value: ${{ steps.connect.outputs.namespace }}
+
+runs:
+  using: composite
+  steps:
+    - id: connect
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+          echo "::error::No OIDC token available. Add 'permissions: id-token: write' to the job."
+          exit 1
+        fi
+        OIDC=$(curl -sf -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+          "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=persql" | jq -r .value)
+        RESP=$(curl -sf -X POST "${{ inputs.api-url }}/v1/actions/connect" \
+          -H "Authorization: Bearer $OIDC") || {
+            echo "::error::PerSQL connect failed. Is the PerSQL GitHub App installed on this repo?"
+            exit 1; }
+        TOKEN=$(echo "$RESP" | jq -r .data.token)
+        # Keep the short-lived token out of any logs.
+        echo "::add-mask::$TOKEN"
+        {
+          echo "token=$TOKEN"
+          echo "url=$(echo "$RESP" | jq -r .data.url)"
+          echo "database=$(echo "$RESP" | jq -r .data.database)"
+          echo "namespace=$(echo "$RESP" | jq -r .data.namespace)"
+        } >> "$GITHUB_OUTPUT"
