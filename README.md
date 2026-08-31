@@ -19,7 +19,7 @@ jobs:
 
       - name: Connect to PerSQL
         id: db
-        uses: persql/setup-db@v1
+        uses: persql/setup-db-action@v1
 
       - name: Query
         env:
@@ -66,7 +66,7 @@ The token is short-lived and scoped to that single database. Workflow
 logs never see it.
 
 For ephemeral per-PR databases instead of one persistent one, use
-[`persql/preview-db-action`](https://github.com/persql/preview-db-action).
+[`persql/pr-preview-db-action`](https://github.com/persql/pr-preview-db-action).
 
 ## Pin to a major version
 
